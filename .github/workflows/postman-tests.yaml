@@ -1,0 +1,47 @@
+name: Postman API Tests
+
+on:
+  push:
+    branches:
+      - BE_HC_DEV
+  workflow_dispatch:
+
+jobs:
+  run-postman-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+
+      - name: Install Newman
+        run: |
+          npm install -g newman
+
+      - name: Run Newman Tests
+        env:
+          AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
+        run: |
+          # Create environment file with actual AUTH_TOKEN
+          sed "s/{{AUTH_TOKEN}}/$AUTH_TOKEN/g" environment.json > env.json
+          # Run the Postman collection using Newman
+          newman run sample-collection.json -e env.json --reporters cli,junit --reporter-junit-export results.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: Newman Test Results
+          path: results.xml
+
+      - name: Publish Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Postman Tests
+          path: results.xml
+          reporter: junit
